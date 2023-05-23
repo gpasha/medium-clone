@@ -19,6 +19,9 @@ export class UserService {
     ) { }
 
     async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
+        const errorResponse = {
+            errors: {}
+        }
         const userByEmail = await this.userRepository.findOne({
             email: createUserDto.email
         })
@@ -26,8 +29,16 @@ export class UserService {
             username: createUserDto.username
         })
 
+        if (userByEmail) {
+            errorResponse.errors['email'] = 'has already been taken'
+        }
+
+        if (userByName) {
+            errorResponse.errors['username'] = 'has already been taken'
+        }
+
         if (userByEmail || userByName) {
-            throw new HttpException('Email or username are taken', HttpStatus.UNPROCESSABLE_ENTITY)
+            throw new HttpException(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY)
         }
 
         const newUser = new UserEntity()
@@ -58,6 +69,11 @@ export class UserService {
 
 
     async login({ email, password }: LoginUserDto): Promise<UserEntity> {
+        const errorResponse = {
+            errors: {
+                'email or password': 'is invalid'
+            }
+        }
         const user = await this.userRepository.findOne({
             email: email
         }, {
@@ -65,13 +81,13 @@ export class UserService {
         })
 
         if (!user) {
-            throw new HttpException('Credentials are not valid', HttpStatus.UNPROCESSABLE_ENTITY)
+            throw new HttpException(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY)
         }
 
         const isCorrectPassword = await this.comparePassword(password, user.password)
 
         if (!isCorrectPassword) {
-            throw new HttpException('Email or password is incorrect', HttpStatus.UNPROCESSABLE_ENTITY)
+            throw new HttpException(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY)
         }
 
         delete user.password
@@ -89,8 +105,6 @@ export class UserService {
     }
 
     async updateUser(userId: number, updateUserDto: UpdateUserDto): Promise<UserEntity> {
-        // await this.userRepository.update({ id: userId }, { ...updateUserDto })
-        // return await this.findUserById(id: userId)
         const user = await this.findUserById(userId)
         Object.assign(user, updateUserDto)
         return await this.userRepository.save(user)
