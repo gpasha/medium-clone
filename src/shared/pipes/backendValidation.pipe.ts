@@ -6,6 +6,8 @@ export class BackendValidationPipe implements PipeTransform {
     async transform(value: any, metatype: ArgumentMetadata) {
         const object = plainToClass(metatype.metatype, value)
 
+        if (typeof object !== 'object') return value
+
         const errors = await validate(object)
 
         if (!errors?.length) return value
